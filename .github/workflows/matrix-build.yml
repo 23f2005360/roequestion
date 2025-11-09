@@ -1,0 +1,54 @@
+name: Matrix Build with Artifacts
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    # run each matrix variant on ubuntu-latest (can add os matrix too)
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        # at least 3 different variants (here different Node versions + a config flag)
+        node_version: [14, 16, 18]
+        config: [alpha]   # single-dimension matrix is fine; you can expand to multi-dim later
+      fail-fast: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node ${{ matrix.node_version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node_version }}
+
+      # STEP IDENTIFIER REQUIRED BY VALIDATION
+      - name: matrix-e1ab1b3
+        id: matrix_e1ab1b3
+        run: |
+          echo "Running matrix job for node ${{ matrix.node_version }} config ${{ matrix.config }}"
+          # Print an environment summary (useful in logs)
+          echo "GITHUB_JOB=$GITHUB_JOB"
+          echo "MATRIX_NODE=${{ matrix.node_version }}"
+          echo "MATRIX_CONFIG=${{ matrix.config }}"
+
+      - name: Generate build artifact (create non-empty file)
+        run: |
+          mkdir -p build
+          echo "artifact for node ${MATRIX_NODE:-${{ matrix.node_version }}} config ${{ matrix.config }}" > build/output-${{ matrix.node_version }}-${{ matrix.config }}.txt
+          echo "Timestamp: $(date --utc +%Y-%m-%dT%H:%M:%SZ)" >> build/output-${{ matrix.node_version }}-${{ matrix.config }}.txt
+          # Show file contents for debugging
+          echo "---- artifact contents ----"
+          cat build/output-${{ matrix.node_version }}-${{ matrix.config }}.txt
+          echo "--------------------------"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          # required prefix build-e1ab1b3 and make artifact names unique per variant
+          name: build-e1ab1b3-node${{ matrix.node_version }}-cfg${{ matrix.config }}
+          path: build/output-${{ matrix.node_version }}-${{ matrix.config }}.txt
